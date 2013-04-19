@@ -1,5 +1,15 @@
 <?php
-//https://github.com/ajillion/PHP-MySQLi-Database-Class
+/**
+ * MySqliDb Class
+ *
+ * @category Database Access
+ * @package MysqliDB
+ * @author Jeffery Way <jeffrey@jeffrey-way.com>
+ * @author Josh Campbell <jcampbell@ajillion.com>
+ * @copyright Copyright (c) 2010
+ * @license http://opensource.org/licenses/gpl-3.0.html GNU Public License
+ * @version 1.1
+ **/
 class MysqliDB {
 
 	/**
@@ -56,7 +66,8 @@ class MysqliDB {
 	 * instantiated object from within another class.
 	 * Inheriting this class would require reloading connection info.
 	 *
-	 * @uses $db = MySqliDb::getInstance()
+	 * @uses $db = MySqliDb::getInstance();
+	 *
 	 * @return object Returns the current instance.
 	 */
 	public static function getInstance()
@@ -87,19 +98,16 @@ class MysqliDB {
 	 */
 	public function rawQuery($query, $bindParams = NULL) 
 	{
-		$this->_query = filter_var($query, FILTER_SANITIZE_STRING | FILTER_SANITIZE_NUMBER_FLOAT);
-		//echo 	$this->_query ;
-        
+		$this->_query = filter_var($query, FILTER_SANITIZE_STRING);
 		$stmt = $this->_prepareQuery();
-	
+
 		if (gettype($bindParams) === 'array') {
 			$params = array('');		// Create the empty 0 index
 			foreach ($bindParams as $prop => $val) {
 				$params[0] .= $this->_determineType($val);
 				array_push($params, $bindParams[$prop]);
 			}
-			//print_r($params);
-			
+
                 	call_user_func_array(array($stmt, "bind_param"),$this->refValues($params));
 
 		}
@@ -138,7 +146,7 @@ class MysqliDB {
 	public function get($tableName, $numRows = NULL) 
 	{
 
-		$this->_query = "SELECT * FROM `$tableName`";
+		$this->_query = "SELECT * FROM $tableName";
 		$stmt = $this->_buildQuery($numRows);
 		$stmt->execute();
 		$this->reset();
@@ -155,7 +163,7 @@ class MysqliDB {
 	 */
 	public function insert($tableName, $insertData) 
 	{
-		$this->_query = "INSERT into `$tableName`";
+		$this->_query = "INSERT into $tableName";
 		$stmt = $this->_buildQuery(NULL, $insertData);
 		$stmt->execute();
 		$this->reset();
@@ -173,7 +181,7 @@ class MysqliDB {
 	 */
 	public function update($tableName, $tableData) 
 	{
-		$this->_query = "UPDATE `$tableName` SET ";
+		$this->_query = "UPDATE $tableName SET ";
 
 		$stmt = $this->_buildQuery(NULL, $tableData);
 		$stmt->execute();
@@ -191,7 +199,7 @@ class MysqliDB {
 	 * @return boolean Indicates success. 0 or 1.
 	 */
 	public function delete($tableName, $numRows = NULL) {
-		$this->_query = "DELETE FROM `$tableName`";
+		$this->_query = "DELETE FROM $tableName";
 
 		$stmt = $this->_buildQuery($numRows);
 		$stmt->execute();
@@ -253,8 +261,7 @@ class MysqliDB {
 			case 'string':
 				return 's';
 				break;
-			
-			case 'boolean':
+
 			case 'integer':
 				return 'i';
 				break;
@@ -262,13 +269,10 @@ class MysqliDB {
 			case 'blob':
 				return 'b';
 				break;
-			
+
 			case 'double':
 				return 'd';
 				break;
-			
-			
-			
 		}
 	}
 
@@ -296,14 +300,13 @@ class MysqliDB {
 				if ( $pos !== false) {
 					foreach ($tableData as $prop => $value) {
 						// determines what data type the item is, for binding purposes.
-						
 						$this->_paramTypeList .= $this->_determineType($value);
+
 						// prepares the reset of the SQL query.
-						
 						($i === count($tableData)) ?
 							$this->_query .= $prop . ' = ?':
 							$this->_query .= $prop . ' = ?, ';
-						
+
 						$i++;
 					}
 				}
@@ -335,39 +338,19 @@ class MysqliDB {
 				$keys = array_keys($tableData);
 				$values = array_values($tableData);
 				$num = count($keys);
-				
-				
 
 				// wrap values in quotes
 				foreach ($values as $key => $val) {
-					$values[$key] = "'{$val}'"; 
-					//comment:echo "<br>".$key.":".$val.":".$this->_determineType($val).":".gettype($val);
+					$values[$key] = "'{$val}'";
 					$this->_paramTypeList .= $this->_determineType($val);
 				}
-				//echo $this->_paramTypeList;
-				/*
-				 	$proptemp  = $prop;
-						
-						$a = $this->_determineType($value);
-						//echo '\n$a='.$a;
-						if($a==null)  
-						{						
-							($i === count($tableData)) ?
-							$this->_query .= $prop . ' = ?':"";
-							
-							$i++;
-							continue;
-						}
-				 	 
-				 */
-				$this->_query .= '(`' . implode($keys, '`, `') . '`)';
+
+				$this->_query .= '(' . implode($keys, ', ') . ')';
 				$this->_query .= ' VALUES(';
 				while ($num !== 0) {
 					($num !== 1) ? $this->_query .= '?, ' : $this->_query .= '?)';
 					$num--;
 				}
-				//echo "<br/><pre>".$this->_query;
-				
 			}
 		}
 
@@ -396,10 +379,7 @@ class MysqliDB {
 			}	
 		}
 		// Bind parameters to statment
-		//comment: print_r($this->refValues($this->_bindParams));
-		//comment: echo "\n".$this->_query; 
 		if ($hasTableData || $hasConditional){
-			
 			call_user_func_array(array($stmt, "bind_param"),$this->refValues($this->_bindParams));
 		}
 
@@ -444,12 +424,8 @@ class MysqliDB {
 	*/
 	protected function _prepareQuery() 
 	{
-		//print_r($this->_mysqli);
-		
 		if (!$stmt = $this->_mysqli->prepare($this->_query)) {
-			
 			trigger_error("Problem preparing query ($this->_query) ".$this->_mysqli->error, E_USER_ERROR);
-	
 		}
 		return $stmt;
 	}
